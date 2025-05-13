@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pie Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden; /* Prevent scrollbars */
+      background: #189BDA;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #chartWrapper {
+      width: 90vmin; /* Keeps square shape */
+      height: 90vmin;
+      max-width: 400px;
+      max-height: 400px;
+      background: #FFFDD0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      border-radius: 12px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="chartWrapper">
+    <canvas id="pieChart"></canvas>
+  </div>
+
+  <script>
+    let parentOrigin = "*", chartInstance = null;
+
+    window.addEventListener("message", (e) => {
+      if (e.origin) parentOrigin = e.origin;
+      if (e.data?.fixerPct != null) renderChart(e.data);
+      else if (e.data === "getChartImage") sendChartImage();
+    });
+
+    function renderChart({ fixerPct, reactorPct, impactorPct }) {
+      const ctx = document.getElementById("pieChart").getContext("2d");
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: "pie",
+        data: {
+          labels: ["Fixer", "Reactor", "Impactor"],
+          datasets: [{
+            data: [fixerPct, reactorPct, impactorPct],
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+            borderColor: '#FFF',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            datalabels: {
+              color: "#000",
+              formatter: v => v + "%",
+              font: { weight: "bold", size: 14 }
+            },
+            legend: { position: "bottom" }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+
+    function sendChartImage() {
+      if (!chartInstance) {
+        window.parent.postMessage({ chartImage: null }, parentOrigin);
+        return;
+      }
+      const c = document.getElementById("pieChart");
+      const temp = document.createElement("canvas");
+      temp.width = c.width;
+      temp.height = c.height;
+      const ctx = temp.getContext("2d");
+      ctx.fillStyle = "#FFFDD0";
+      ctx.fillRect(0, 0, temp.width, temp.height);
+      ctx.drawImage(c, 0, 0);
+      window.parent.postMessage({ chartImage: temp.toDataURL("image/png") }, parentOrigin);
+    }
+  </script>
+</body>
+</html>
