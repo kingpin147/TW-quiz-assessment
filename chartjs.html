@@ -11,7 +11,7 @@
       padding: 0;
       height: 100%;
       width: 100%;
-      overflow: hidden; /* Prevent scrollbars */
+      overflow: hidden;
       background: #189BDA;
       display: flex;
       justify-content: center;
@@ -19,7 +19,7 @@
     }
 
     #chartWrapper {
-      width: 90vmin; /* Keeps square shape */
+      width: 90vmin;
       height: 90vmin;
       max-width: 400px;
       max-height: 400px;
@@ -48,7 +48,6 @@
     window.addEventListener("message", (e) => {
       if (e.origin) parentOrigin = e.origin;
       if (e.data?.fixerPct != null) renderChart(e.data);
-      else if (e.data === "getChartImage") sendChartImage();
     });
 
     function renderChart({ fixerPct, reactorPct, impactorPct }) {
@@ -76,6 +75,11 @@
               font: { weight: "bold", size: 14 }
             },
             legend: { position: "bottom" }
+          },
+          animation: {
+            onComplete: () => {
+              setTimeout(sendChartImage, 300); // Give canvas time to stabilize
+            }
           }
         },
         plugins: [ChartDataLabels]
