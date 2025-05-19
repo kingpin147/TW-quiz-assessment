@@ -6,9 +6,25 @@ let answers = [];
 let chartDataUrl = "";
 let chartReceived = false;
 let fixerPct, reactorPct, impactorPct;
+let name;
 
 $w.onReady(async () => {
     $w("#score").hide();
+    $w("#back").hide();
+    $w("#next").hide();
+
+    // 🟢 START BUTTON HANDLER (State0)
+    $w("#start").onClick(() => {
+        name = $w("#fname").value.trim();
+        if (!name) {
+            $w("#score").text = "Please enter your full name before starting.";
+            $w("#score").show();
+            return;
+        }
+        $w("#score").hide();
+        $w("#multiStateBox").changeState("State1");
+        updateButtons(1);
+    });
 
     // 📩 Listen for chart image from iframe once
     $w("#html1").onMessage(async (event) => {
@@ -20,33 +36,35 @@ $w.onReady(async () => {
         }
     });
 
-    // 📚 Load and sort quiz questions
+    // 📚 Load and assign quiz questions
     const results = await wixData.query("Assesment").find();
     const sortedItems = results.items
         .filter(item => item.text && !isNaN(parseInt(item.text)))
         .sort((a, b) => parseInt(a.text) - parseInt(b.text));
 
-    // 🎯 Assign each question to State1–State25
     sortedItems.forEach((item, i) => {
         const index = i + 1;
-        $w(`#questionText${index}`).text = item.assessmentQuestion;
-        $w(`#radioGroup${index}`).options = [
-            { label: item.option1, value: "A" },
-            { label: item.option2, value: "B" },
-            { label: item.option3, value: "C" },
-        ];
-        $w(`#radioGroup${index}`).onChange(e => {
-            const existing = answers.find(a => a.index === i);
-            if (existing) {
-                existing.value = e.target.value;
-            } else {
-                answers.push({ index: i, value: e.target.value });
-            }
-            e.target.disable();
-        });
-    });
+        const questionText = $w(`#questionText${index}`);
+        const radioGroup = $w(`#radioGroup${index}`);
 
-    updateButtons(1);
+        if (questionText && radioGroup) {
+            questionText.text = item.assessmentQuestion;
+            radioGroup.options = [
+                { label: item.option1, value: "A" },
+                { label: item.option2, value: "B" },
+                { label: item.option3, value: "C" },
+            ];
+            radioGroup.onChange(e => {
+                const existing = answers.find(a => a.index === index);
+                if (existing) {
+                    existing.value = e.target.value;
+                } else {
+                    answers.push({ index: index, value: e.target.value });
+                }
+                e.target.disable();
+            });
+        }
+    });
 });
 
 // ⏭ NEXT / SUBMIT
@@ -64,6 +82,9 @@ $w("#next").onClick(() => {
     if (answers.length < 25) {
         $w("#score").text = "Please answer all questions before submitting.";
         $w("#score").show();
+
+        // Debug info (optional)
+        console.log("Answers collected:", answers.map(a => a.index));
         return;
     }
     $w("#score").hide();
@@ -91,7 +112,7 @@ $w("#next").onClick(() => {
     updateButtons(26);
 });
 
-// 🔙 BACK
+// 🔙 BACK BUTTON
 $w("#back").onClick(() => {
     const curr = +$w("#multiStateBox").currentState.id.replace("State", "");
     if (curr > 1 && curr <= 25) {
@@ -101,9 +122,12 @@ $w("#back").onClick(() => {
     }
 });
 
-// 🎯 Control buttons
+// 🎯 BUTTON VISIBILITY CONTROLLER
 function updateButtons(stateIndex) {
-    if (stateIndex === 1) {
+    if (stateIndex === 0) {
+        $w("#back").hide();
+        $w("#next").hide();
+    } else if (stateIndex === 1) {
         $w("#back").hide();
         $w("#next").label = "Next";
         $w("#next").show();
@@ -121,18 +145,24 @@ function updateButtons(stateIndex) {
     }
 }
 
-// 📄 Generate PDF once chart is ready
+// 🧾 PDF GENERATION
 async function generatePDF() {
     const today = new Date().toLocaleDateString("en-US", {
         year: "numeric", month: "long", day: "numeric"
     });
 
     try {
-        const { downloadUrl } = await generateAssessmentPDF(answers, chartDataUrl, today, {
-            fixerPct,
-            reactorPct,
-            impactorPct
-        });
+        const { downloadUrl } = await generateAssessmentPDF(
+            name,       // participantName
+            answers,    // answersArray
+            chartDataUrl, 
+            today,      // dateStr
+            {           // scores
+                fixerPct,
+                reactorPct,
+                impactorPct
+            }
+        );
         wixLocation.to(downloadUrl);
     } catch (err) {
         console.error("PDF generation error", err);
